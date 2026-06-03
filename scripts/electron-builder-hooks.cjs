@@ -109,6 +109,10 @@ function verifyPreinstalledPlugins(runtimeRoot, buildHint) {
     if (!plugin.id) continue;
     const pluginDir = path.join(extensionsDir, plugin.id);
     if (!existsSync(pluginDir)) {
+      if (plugin.optional) {
+        console.log(`[electron-builder-hooks] Optional plugin "${plugin.id}" not found, skipping.`);
+        continue;
+      }
       missing.push(plugin.id);
     }
   }

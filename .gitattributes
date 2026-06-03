@@ -1,2 +1,5 @@
 # Force LF line endings for shell scripts (required for bash on all platforms)
 *.sh text eol=lf
+
+# Generated bundle files — always LF to avoid autocrlf churn on Windows
+SKILLs/technology-news-search/scripts/vendor/rss-parser.bundle.js text eol=lf
