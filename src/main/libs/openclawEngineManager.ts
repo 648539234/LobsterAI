@@ -510,6 +510,12 @@ export class OpenClawEngineManager extends EventEmitter {
       // Enable V8 compile cache for both CJS and ESM modules.
       // This env var works for import() (ESM), unlike enableCompileCache() which is CJS-only.
       NODE_COMPILE_CACHE: compileCacheDir,
+      // jiti (used by gateway for JIT compilation of config plugins) writes a
+      // .cache/jiti directory next to node_modules.  On Windows the gateway
+      // bundle lives under C:\Program Files which is non-writable for standard
+      // users, causing EPERM at startup.  Disable the filesystem cache to avoid
+      // this — jiti's in-memory cache is still active.
+      JITI_FS_CACHE: 'false',
       LOBSTERAI_ELECTRON_PATH: electronNodeRuntimePath.replace(/\\/g, '/'),
       LOBSTERAI_OPENCLAW_ENTRY: openclawEntry.replace(/\\/g, '/'),
       // Inject secret values for ${VAR} placeholders in openclaw.json.
