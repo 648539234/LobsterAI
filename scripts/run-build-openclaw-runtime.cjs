@@ -94,6 +94,8 @@ if (process.platform === 'win32') {
   const pathValue = pathEntries.map(([, v]) => v).join(path.delimiter);
   for (const [k] of pathEntries) delete env[k];
   env.PATH = `${nodeDir}${path.delimiter}${pathValue}`;
+  // Prevent pnpm (corepack-activated) from falling back to {drive}:\.pnpm-store
+  env.npm_config_store_dir = env.npm_config_store_dir || 'D:/software/nodejs/.pnpm-store';
 }
 
 // Use a relative path so bash never sees Windows drive-letter paths like
