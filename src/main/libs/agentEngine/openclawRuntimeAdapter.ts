@@ -28,7 +28,7 @@ import { t } from '../../i18n';
 import { MediaGenerationTool } from '../../mediaGenerationPolicy';
 import type { SubagentMessageStore } from '../../subagentMessageStore';
 import type { SubagentRunStore } from '../../subagentRunStore';
-import { getCommandDangerLevel,isDeleteCommand } from '../commandSafety';
+import { getCommandDangerLevel, isDeleteCommand, isScriptExecution } from '../commandSafety';
 import { setCoworkProxySessionId } from '../coworkOpenAICompatProxy';
 import { extractOpenClawAssistantStreamParts,extractOpenClawAssistantStreamText } from '../openclawAssistantText';
 import {
@@ -3497,9 +3497,44 @@ export class OpenClawRuntimeAdapter extends EventEmitter implements CoworkRuntim
     }
     console.log('[ChannelSync] ensureGatewayClientReady: gateway client created and ready');
 
+    // Re-apply exec-approvals ask=once after gateway startup, because the
+    // gateway overwrites exec-approvals.json with socket info on boot,
+    // which drops the ask field (defaulting to "off").
+    this.patchExecApprovalsAskOnce();
+
     // Browser pre-warm disabled: the empty browser window is disruptive.
     // The browser will start on-demand when the AI agent first calls the browser tool.
     // this.prewarmBrowserIfNeeded(connection);
+  }
+
+  /**
+   * After gateway startup, the gateway writes socket info back into
+   * exec-approvals.json which drops the ask field.  Re-apply ask=once so
+   * the gateway sends exec.approval.requested events for every command.
+   */
+  private patchExecApprovalsAskOnce(): void {
+    try {
+      const filePath = path.join(
+        this.engineManager.getBaseDir(),
+        '.openclaw',
+        'exec-approvals.json',
+      );
+      if (!fs.existsSync(filePath)) return;
+
+      const raw = fs.readFileSync(filePath, 'utf8');
+      const file = JSON.parse(raw) as Record<string, unknown>;
+      if (!file.agents || typeof file.agents !== 'object') file.agents = {};
+      const agents = file.agents as Record<string, Record<string, unknown>>;
+      if (!agents.main) agents.main = {};
+      if (agents.main.security === 'full' && agents.main.ask === 'on') return;
+
+      agents.main.security = 'full';
+      agents.main.ask = 'on';
+      fs.writeFileSync(filePath, `${JSON.stringify(file, null, 2)}\n`, 'utf8');
+      console.log('[OpenClawRuntime] patched exec-approvals.json ask=on after gateway start');
+    } catch (error) {
+      console.warn('[OpenClawRuntime] failed to patch exec-approvals.json:', error);
+    }
   }
 
   private async createGatewayClient(connection: OpenClawGatewayConnectionInfo): Promise<void> {
@@ -6468,13 +6503,12 @@ export class OpenClawRuntimeAdapter extends EventEmitter implements CoworkRuntim
       return;
     }
 
-    // Auto-approve: channel sessions always, local sessions for non-delete commands.
-    // Intentionally allows non-delete dangerous commands (git push, kill, chmod) without
-    // prompting — this is a deliberate trade-off to avoid the approval-pending timing
-    // issue on fresh installs.  Only file-deletion commands warrant a blocking modal.
+    // Auto-approve: channel sessions always, local sessions for safe commands.
+    // Only delete commands and script executions (python/node) warrant a blocking modal
+    // on desktop sessions. IM channel sessions never prompt.
     // The allow-always decision adds the command to the gateway allowlist so subsequent
     // calls skip the approval flow entirely.
-    if (isChannelSession || !isDeleteCommand(command)) {
+    if (isChannelSession || (!isDeleteCommand(command) && !isScriptExecution(command))) {
       this.pendingApprovals.set(requestId, { requestId, sessionId, allowAlways: true });
       this.respondToPermission(requestId, { behavior: 'allow', updatedInput: {} });
     }

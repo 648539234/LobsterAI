@@ -281,13 +281,18 @@ const MANAGED_EXEC_SAFETY_PROMPT = [
   '- If `AskUserQuestion` IS available: you MUST call it first to get user confirmation. The question should clearly state what will be deleted with options like "Allow delete" / "Cancel".',
   '- If `AskUserQuestion` is NOT available: execute the delete command directly without asking for text-based confirmation.',
   '',
+  '### Script Execution',
+  '- Before executing **Python scripts** (python, python3, pip, pip3, pipenv, poetry, uv run) or **Node.js scripts** (node, npm, npx, yarn, pnpm, tsx, ts-node, bun), check if the `AskUserQuestion` tool is available.',
+  '- If `AskUserQuestion` IS available: you MUST call it first to get user confirmation. The question should show the command and the script path.',
+  '- If `AskUserQuestion` is NOT available: execute the script directly without asking for confirmation.',
+  '',
   '### User Choices & Decisions',
   '- When you need the user to make a choice between multiple options (e.g. selecting a framework, choosing a file, picking a configuration), check if `AskUserQuestion` is available.',
   '- If `AskUserQuestion` IS available: use it to present the options as a structured question. Use `multiSelect: true` when the user can pick more than one option.',
   '- If `AskUserQuestion` is NOT available: ask via plain text instead.',
   '',
   '### General Commands',
-  '- For ALL commands (ls, git, cd, kill, chmod, curl, etc.), execute them directly WITHOUT asking for confirmation.',
+  '- For ALL other commands (ls, cat, echo, cd, git, curl, etc.), execute them directly WITHOUT asking for confirmation.',
   '- Do NOT add your own text-based confirmation before executing commands.',
   '- Never mention "approval", "审批", or "批准" to the user.',
   '- If a command fails, report the error and ask the user what to do next.',
@@ -2496,10 +2501,9 @@ loopDetection: MANAGED_TOOL_LOOP_DETECTION,
 
   /**
    * Ensures exec-approvals.json under the LobsterAI-managed openclaw home has
-   * security=full + ask=off so the gateway never triggers approval-pending
-   * for any command. The path must match the OPENCLAW_HOME env var passed to
-   * the gateway process so both sides read/write the same file.
-   * Delete-command protection is handled via the system prompt instead.
+   * security=full + ask=once so the gateway triggers approval-requested events.
+   * The desktop app handles delete and script-execution commands via the
+   * approval modal; IM channels are auto-approved.
    */
   private ensureExecApprovalDefaults(): void {
     const filePath = path.join(this.engineManager.getBaseDir(), '.openclaw', 'exec-approvals.json');
@@ -2527,10 +2531,10 @@ loopDetection: MANAGED_TOOL_LOOP_DETECTION,
     if (!file.agents.main) file.agents.main = {};
     const agent = file.agents.main;
 
-    if (agent.security === 'full' && agent.ask === 'off') return;
+    if (agent.security === 'full' && agent.ask === 'on') return;
 
     agent.security = 'full';
-    agent.ask = 'off';
+    agent.ask = 'on';
 
     try {
       const dir = path.dirname(filePath);
@@ -2538,7 +2542,7 @@ loopDetection: MANAGED_TOOL_LOOP_DETECTION,
         fs.mkdirSync(dir, { recursive: true });
       }
       this.atomicWriteFile(filePath, `${JSON.stringify(file, null, 2)}\n`);
-      console.log('[OpenClawConfigSync] set exec-approvals security=full ask=off');
+      console.log('[OpenClawConfigSync] set exec-approvals security=full ask=on');
     } catch (error) {
       console.warn('[OpenClawConfigSync] failed to write exec-approvals.json:', error);
     }

@@ -41,6 +41,7 @@ const DANGER_REASON_I18N_MAP: Record<string, string> = {
   'git-push': 'dangerReasonGitPush',
   'process-kill': 'dangerReasonProcessKill',
   'permission-change': 'dangerReasonPermissionChange',
+  'script-execution': 'dangerReasonScriptExecution',
 };
 
 /** Fallback detection when dangerLevel is not provided by the adapter */

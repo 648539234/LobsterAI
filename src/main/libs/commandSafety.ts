@@ -20,6 +20,10 @@ const GIT_PUSH_RE = /\bgit\s+push\b/i;
 const KILL_COMMAND_RE = /\b(kill|killall|pkill)\b/i;
 const CHMOD_COMMAND_RE = /\b(chmod|chown)\b/i;
 
+// Script execution patterns
+const PYTHON_COMMAND_RE = /\b(python3?|pip3?|pipenv|poetry|uv\s+run)\b/i;
+const NODE_COMMAND_RE = /\b(node|npm|npx|yarn|pnpm|tsx|ts-node|bun)\b/i;
+
 export type DangerLevel = 'safe' | 'caution' | 'destructive';
 
 /**
@@ -83,6 +87,17 @@ export function getCommandDangerLevel(command: string): {
   if (CHMOD_COMMAND_RE.test(command)) {
     return { level: 'caution', reason: 'permission-change' };
   }
+  if (isScriptExecution(command)) {
+    return { level: 'caution', reason: 'script-execution' };
+  }
 
   return { level: 'safe', reason: '' };
+}
+
+/**
+ * Returns true if the command invokes a Python or Node.js runtime.
+ */
+export function isScriptExecution(command: string): boolean {
+  return PYTHON_COMMAND_RE.test(command)
+    || NODE_COMMAND_RE.test(command);
 }

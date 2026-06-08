@@ -152,9 +152,12 @@ const plugin = {
         label: 'Ask User Question',
         description: [
         'Ask the user a question with predefined options and wait for their response.',
-        'Use this tool BEFORE executing any delete operation (rm, trash, rmdir, unlink, git clean).',
+        'Use this tool BEFORE executing any of the following operations:',
+        '- Delete operations (rm, trash, rmdir, unlink, git clean, find -delete)',
+        '- Python script execution (python, python3, pip, pip3, pipenv, poetry, uv run)',
+        '- Node.js script execution (node, npm, npx, yarn, pnpm, tsx, ts-node, bun)',
         'The user will see a confirmation dialog with the options you provide.',
-        'Do NOT use this tool for non-delete commands.',
+        'Do NOT use this tool for safe commands (ls, cat, echo, git status, etc.).',
       ].join(' '),
       parameters: AskUserQuestionSchema,
       async execute(_id: string, params: unknown) {
