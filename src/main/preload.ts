@@ -63,6 +63,13 @@ contextBridge.exposeInMainWorld('electron', {
     testEmailConnectivity: (skillId: string, config: Record<string, string>) =>
       ipcRenderer.invoke('skills:testEmailConnectivity', skillId, config),
     fetchMarketplace: () => ipcRenderer.invoke('skills:fetchMarketplace'),
+    fetchHiMarketCategories: () => ipcRenderer.invoke('skills:fetchHiMarketCategories'),
+    fetchHiMarketSkills: (params: { categoryId?: string; page: number }) =>
+      ipcRenderer.invoke('skills:fetchHiMarketSkills', params),
+    fetchHiMarketSkillDetail: (productId: string) =>
+      ipcRenderer.invoke('skills:fetchHiMarketSkillDetail', productId),
+    getHiMarketApiBaseUrl: () => ipcRenderer.invoke('skills:getHiMarketApiBaseUrl'),
+    getHiMarketWebBaseUrl: () => ipcRenderer.invoke('skills:getHiMarketWebBaseUrl'),
     detectFromOpenClaw: () => ipcRenderer.invoke('skills:detectFromOpenClaw'),
     syncFromOpenClaw: () => ipcRenderer.invoke('skills:syncFromOpenClaw'),
     refreshPluginSkillIds: () => ipcRenderer.invoke('skills:refreshPluginSkillIds'),
