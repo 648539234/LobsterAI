@@ -132,7 +132,7 @@ Vision 支持取决于模型配置中的 `supportsImage` 字段。
 | D | 从网页拖入非图片文件（无 nativePath） | ❌ | ❌ | `saveInlineFile()` → `addAttachment(savedPath)` | ✅ 写入磁盘 | ✅ | — |
 | E | 截图粘贴 / 从网页复制图片（无 nativePath） | ❌ | ✅ | `saveInlineFile()` → `addAttachment(savedPath, {isImage, dataUrl})` | ✅ 写入磁盘 | ✅ | ✅ |
 
-> 路径 E 在 [clipboard-image-persistence](../../bugfixes/native-history-archive/clipboard-image-persistence/2026-04-07-clipboard-image-persistence-design.md) 中从"仅内存"修改为"写入磁盘"。
+> 路径 E 在 [clipboard-image-persistence](../../../bugfixes/native-history-archive/clipboard-image-persistence/2026-04-07-clipboard-image-persistence-design.md) 中从"仅内存"修改为"写入磁盘"。
 
 ### 关键函数
 
@@ -275,4 +275,4 @@ IM 网关（WeChat、Feishu、DingTalk 等）的附件处理独立于 Cowork 直
 
 | 编号 | 日期 | 说明 | 文档 |
 |------|------|------|------|
-| 001 | 2026-04-07 | 修复 clipboard 图片不写磁盘导致第二轮对话找不到文件 | [clipboard-image-persistence](../../bugfixes/native-history-archive/clipboard-image-persistence/2026-04-07-clipboard-image-persistence-design.md) |
+| 001 | 2026-04-07 | 修复 clipboard 图片不写磁盘导致第二轮对话找不到文件 | [clipboard-image-persistence](../../../bugfixes/native-history-archive/clipboard-image-persistence/2026-04-07-clipboard-image-persistence-design.md) |
