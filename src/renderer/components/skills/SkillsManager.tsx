@@ -14,7 +14,7 @@ import { i18nService } from '../../services/i18n';
 import { compareVersions,resolveLocalizedText, skillService } from '../../services/skill';
 import { RootState } from '../../store';
 import { setSkills } from '../../store/slices/skillSlice';
-import { MarketplaceSkill, MarketTag,Skill } from '../../types/skill';
+import { HiMarketCategory, HiMarketSkill, HiMarketSkillDetail, MarketplaceSkill, MarketTag,Skill } from '../../types/skill';
 import Modal from '../common/Modal';
 import ErrorMessage from '../ErrorMessage';
 import FolderOpenIcon from '../icons/FolderOpenIcon';
@@ -27,7 +27,7 @@ import TrashIcon from '../icons/TrashIcon';
 import UploadIcon from '../icons/UploadIcon';
 import SkillSecurityReport from './SkillSecurityReport';
 
-type SkillTab = 'installed' | 'marketplace';
+type SkillTab = 'installed' | 'internal' | 'marketplace';
 type ImportSourceType = 'github' | 'clawhub';
 type DirectImportSource = 'zip' | 'folder' | 'remote';
 
@@ -98,6 +98,18 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
   const [detectedOpenClawSkills, setDetectedOpenClawSkills] = useState<Array<{ name: string; description: string; skillKey: string }> | null>(null);
   const [isSyncingFromOpenClaw, setIsSyncingFromOpenClaw] = useState(false);
 
+  const [hiMarketCategories, setHiMarketCategories] = useState<HiMarketCategory[]>([]);
+  const [hiMarketSkills, setHiMarketSkills] = useState<HiMarketSkill[]>([]);
+  const [activeHiMarketCategory, setActiveHiMarketCategory] = useState('all');
+  const [isLoadingHiMarketSkills, setIsLoadingHiMarketSkills] = useState(false);
+  const [hiMarketPage, setHiMarketPage] = useState(1);
+  const [hasMoreHiMarketSkills, setHasMoreHiMarketSkills] = useState(true);
+  const [selectedHiMarketSkill, setSelectedHiMarketSkill] = useState<HiMarketSkill | null>(null);
+  const [hiMarketSkillDetail, setHiMarketSkillDetail] = useState<HiMarketSkillDetail | null>(null);
+  const [isLoadingHiMarketDetail, setIsLoadingHiMarketDetail] = useState(false);
+  const [hiMarketWebBaseUrl, setHiMarketWebBaseUrl] = useState('http://10.1.50.87:5173');
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
   const addSkillMenuRef = useRef<HTMLDivElement>(null);
   const addSkillButtonRef = useRef<HTMLButtonElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -143,6 +155,19 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
   }, []);
 
   useEffect(() => {
+    let isActive = true;
+    skillService.fetchHiMarketCategories().then((categories) => {
+      if (!isActive) return;
+      setHiMarketCategories(categories);
+    });
+    skillService.getHiMarketWebBaseUrl().then((url) => {
+      if (!isActive) return;
+      setHiMarketWebBaseUrl(url);
+    });
+    return () => { isActive = false; };
+  }, []);
+
+  useEffect(() => {
     if (!ENABLE_OPENCLAW_SKILL_SYNC) return;
     if (sessionStorage.getItem('openClawSkillSyncDetected')) return;
     const detect = async () => {
@@ -154,6 +179,45 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
     };
     detect();
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'internal') return;
+    let isActive = true;
+    setIsLoadingHiMarketSkills(true);
+    const categoryId = activeHiMarketCategory === 'all' ? undefined : activeHiMarketCategory;
+    skillService.fetchHiMarketSkills(categoryId, hiMarketPage).then((result) => {
+      if (!isActive) return;
+      if (hiMarketPage === 1) {
+        setHiMarketSkills(result.skills);
+      } else {
+        setHiMarketSkills(prev => [...prev, ...result.skills]);
+      }
+      setHasMoreHiMarketSkills(result.hasMore);
+      setIsLoadingHiMarketSkills(false);
+    }).catch(() => {
+      if (!isActive) return;
+      setIsLoadingHiMarketSkills(false);
+    });
+    return () => { isActive = false; };
+  }, [activeTab, activeHiMarketCategory, hiMarketPage]);
+
+  useEffect(() => {
+    if (!hasMoreHiMarketSkills || isLoadingHiMarketSkills) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreHiMarketSkills && !isLoadingHiMarketSkills) {
+          setHiMarketPage(prev => prev + 1);
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreHiMarketSkills, isLoadingHiMarketSkills]);
 
   useEffect(() => {
     if (!isAddSkillMenuOpen) return;
@@ -393,6 +457,60 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
     } else {
       showToast(i18nService.t('skillsSyncNoneFound'));
     }
+  };
+
+  const handleHiMarketCategoryChange = (categoryId: string) => {
+    setActiveHiMarketCategory(categoryId);
+    setHiMarketPage(1);
+    setHiMarketSkills([]);
+    setHasMoreHiMarketSkills(true);
+  };
+
+  const handleHiMarketSkillClick = async (skill: HiMarketSkill) => {
+    setSelectedHiMarketSkill(skill);
+    setHiMarketSkillDetail(null);
+    setIsLoadingHiMarketDetail(true);
+    const detail = await skillService.fetchHiMarketSkillDetail(skill.productId);
+    setHiMarketSkillDetail(detail);
+    setIsLoadingHiMarketDetail(false);
+  };
+
+  const handleInstallHiMarketSkill = async (skill: HiMarketSkill) => {
+    if (installingSkillId) return;
+    setInstallingSkillId(skill.productId);
+    setSkillActionError('');
+    try {
+      const apiBase = await skillService.getHiMarketApiBaseUrl();
+      const downloadUrl = `${apiBase}/skills/${skill.productId}/download`;
+      const result = await skillService.downloadSkill(downloadUrl);
+      if (!result.success) {
+        setSkillActionError(result.error || i18nService.t('skillInstallFailed'));
+        return;
+      }
+      if (result.auditReport && result.pendingInstallId) {
+        setSecurityReport(result.auditReport);
+        setPendingInstallId(result.pendingInstallId);
+        setPendingImportSource(null);
+        return;
+      }
+      if (result.skills) {
+        dispatch(setSkills(result.skills));
+      }
+    } catch {
+      setSkillActionError(i18nService.t('skillInstallFailed'));
+    } finally {
+      setInstallingSkillId(null);
+    }
+  };
+
+  const formatDownloadCount = (count: number): string => {
+    if (count >= 10000) {
+      return `${(count / 10000).toFixed(1)}万`;
+    }
+    if (count >= 1000) {
+      return `${(count / 1000).toFixed(1)}k`;
+    }
+    return String(count);
   };
 
   const handleImportFromDialog = async () => {
@@ -711,6 +829,20 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab('internal')}
+            className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+              activeTab === 'internal'
+                ? 'text-foreground'
+                : 'text-secondary hover:hover:text-foreground'
+            }`}
+          >
+            {i18nService.t('skillInternal')}
+            <div className={`absolute bottom-0 left-0 right-0 h-0.5 rounded-full transition-colors ${
+              activeTab === 'internal' ? 'bg-primary' : 'bg-transparent'
+            }`} />
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('marketplace')}
             className={`px-4 py-2 text-sm font-medium transition-colors relative ${
               activeTab === 'marketplace'
@@ -764,6 +896,36 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
                 }`}
               >
                 {resolveLocalizedText(tag)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'internal' && hiMarketCategories.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap max-h-16 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => handleHiMarketCategoryChange('all')}
+              className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
+                activeHiMarketCategory === 'all'
+                  ? 'bg-primary text-white'
+                  : 'bg-surface text-secondary hover:bg-surface-raised border border-border'
+              }`}
+            >
+              {i18nService.t('skillCategoryAll')}
+            </button>
+            {hiMarketCategories.map((cat) => (
+              <button
+                key={cat.categoryId}
+                type="button"
+                onClick={() => handleHiMarketCategoryChange(cat.categoryId)}
+                className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
+                  activeHiMarketCategory === cat.categoryId
+                    ? 'bg-primary text-white'
+                    : 'bg-surface text-secondary hover:bg-surface-raised border border-border'
+                }`}
+              >
+                {cat.name}
               </button>
             ))}
           </div>
@@ -978,6 +1140,85 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
           </>
         )
       )}
+
+      {activeTab === 'internal' && (
+        <>
+          {hiMarketSkills.length === 0 && !isLoadingHiMarketSkills ? (
+            <div className="text-center py-12 text-sm text-secondary">
+              {i18nService.t('skillInternalEmpty')}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {hiMarketSkills.map((skill) => {
+                  const isInstalled = skills.some(s => s.id === skill.productId);
+                  return (
+                    <div
+                      key={skill.productId}
+                      className="rounded-xl border border-border bg-surface p-3 transition-colors hover:border-primary hover:bg-surface-raised cursor-pointer"
+                      onClick={() => handleHiMarketSkillClick(skill)}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-surface flex items-center justify-center flex-shrink-0">
+                            <SkillIcon className="h-4 w-4 text-secondary" />
+                          </div>
+                          <span className="text-sm font-medium text-foreground truncate">
+                            {skill.name}
+                          </span>
+                        </div>
+                        <div className="flex-shrink-0">
+                          {isInstalled ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg text-green-600 dark:text-green-400 bg-green-500/10">
+                              <CheckCircleIcon className="h-3.5 w-3.5" />
+                              {i18nService.t('skillAlreadyInstalled')}
+                            </span>
+                          ) : !readOnly ? (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleInstallHiMarketSkill(skill); }}
+                              disabled={installingSkillId !== null}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg bg-primary text-white hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                              {installingSkillId === skill.productId ? i18nService.t('skillInstalling') : i18nService.t('skillInstall')}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-secondary line-clamp-2 mb-2">
+                        {skill.description}
+                      </p>
+
+                      <div className="flex items-center justify-between text-[10px] text-secondary">
+                        <div className="flex items-center gap-1.5">
+                          {(skill.skillConfig?.skillTags ?? []).slice(0, 3).map((tag, idx) => (
+                            <span key={idx} className="px-1.5 py-0.5 rounded bg-surface-raised font-medium">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        <span className="text-secondary">
+                          {formatDownloadCount(skill.skillConfig?.downloadCount ?? 0)} {i18nService.t('skillDownloadCount')}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div ref={sentinelRef} className="h-4" />
+
+              {isLoadingHiMarketSkills && (
+                <div className="text-center py-4 text-sm text-secondary">
+                  {i18nService.t('downloadingSkill')}
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
       </div>
 
       {selectedMarketplaceSkill && createPortal(
@@ -1078,6 +1319,96 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
                 </button>
               ) : null;
             })()}
+        </Modal>
+      , document.body)}
+
+      {selectedHiMarketSkill && createPortal(
+        <Modal onClose={() => { setSelectedHiMarketSkill(null); setHiMarketSkillDetail(null); }} overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-black/60" className="w-full max-w-md mx-4 rounded-2xl bg-surface border border-border shadow-2xl p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-lg bg-background flex items-center justify-center flex-shrink-0">
+                <SkillIcon className="h-5 w-5 text-secondary" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-base font-semibold text-foreground truncate">
+                  {selectedHiMarketSkill.name}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setSelectedHiMarketSkill(null); setHiMarketSkillDetail(null); }}
+              className="p-1.5 rounded-lg text-secondary hover:text-foreground hover:bg-surface-raised transition-colors flex-shrink-0"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+
+          {isLoadingHiMarketDetail ? (
+            <div className="text-center py-4 text-sm text-secondary">
+              {i18nService.t('downloadingSkill')}
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-secondary mb-4">
+                {hiMarketSkillDetail?.description ?? selectedHiMarketSkill.description}
+              </p>
+
+              <div className="space-y-2 mb-5">
+                {((hiMarketSkillDetail?.skillConfig?.skillTags ?? selectedHiMarketSkill.skillConfig?.skillTags ?? []).length > 0) && (
+                  <div className="flex items-center text-xs">
+                    <span className="w-16 flex-shrink-0 text-secondary">{i18nService.t('skillDetailTags')}</span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {(hiMarketSkillDetail?.skillConfig?.skillTags ?? selectedHiMarketSkill.skillConfig?.skillTags ?? []).map((tag, idx) => (
+                        <span key={idx} className="px-1.5 py-0.5 rounded bg-surface-raised text-foreground font-medium">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center text-xs">
+                  <span className="w-16 flex-shrink-0 text-secondary">{i18nService.t('skillDetailDownloadCount')}</span>
+                  <span className="px-1.5 py-0.5 rounded bg-surface-raised text-foreground font-medium">
+                    {formatDownloadCount(hiMarketSkillDetail?.skillConfig?.downloadCount ?? selectedHiMarketSkill.skillConfig?.downloadCount ?? 0)}
+                  </span>
+                </div>
+                <div className="flex items-start text-xs">
+                  <span className="w-16 flex-shrink-0 text-secondary pt-0.5">{i18nService.t('skillDetailUrl')}</span>
+                  <button
+                    type="button"
+                    className="text-primary hover:underline break-all text-left"
+                    onClick={(e) => { e.stopPropagation(); window.electron.shell.openExternal(`${hiMarketWebBaseUrl}/skills/${selectedHiMarketSkill.productId}`); }}
+                  >
+                    {hiMarketWebBaseUrl}/skills/{selectedHiMarketSkill.productId}
+                  </button>
+                </div>
+              </div>
+
+              {(() => {
+                const isInstalled = skills.some(s => s.id === selectedHiMarketSkill.productId);
+                if (isInstalled) {
+                  return (
+                    <div className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-green-500/10 text-green-600 dark:text-green-400 text-sm font-medium">
+                      <CheckCircleIcon className="h-4 w-4" />
+                      {i18nService.t('skillAlreadyInstalled')}
+                    </div>
+                  );
+                }
+                return !readOnly ? (
+                  <button
+                    type="button"
+                    onClick={() => handleInstallHiMarketSkill(selectedHiMarketSkill)}
+                    disabled={installingSkillId !== null}
+                    className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                  >
+                    <ArrowDownTrayIcon className="h-4 w-4" />
+                    {installingSkillId === selectedHiMarketSkill.productId ? i18nService.t('skillInstalling') : i18nService.t('skillInstall')}
+                  </button>
+                ) : null;
+              })()}
+            </>
+          )}
         </Modal>
       , document.body)}
 
