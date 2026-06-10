@@ -40,3 +40,34 @@ export interface MarketplaceSkill {
     author?: string;        // Author name
   };
 }
+
+export interface HiMarketCategory {
+  categoryId: string;
+  name: string;
+  description: string;
+}
+
+export interface HiMarketSkill {
+  productId: string;
+  name: string;
+  description: string;
+  skillConfig: {
+    skillTags: string[] | null;
+    downloadCount: number;
+  };
+}
+
+export interface HiMarketSkillDetail {
+  productId: string;
+  name: string;
+  description: string;
+  status: string;
+  type: string;
+  categories: HiMarketCategory[];
+  createAt: string;
+  updatedAt: string;
+  skillConfig: {
+    skillTags: string[] | null;
+    downloadCount: number;
+  };
+}
