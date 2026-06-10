@@ -73,3 +73,15 @@ export const getKitStoreUrl = (): string => (
     ? 'https://api-overmind.youdao.com/openapi/get/luna/hardware/lobsterai/test/kit-store'
     : 'https://api-overmind.youdao.com/openapi/get/luna/hardware/lobsterai/prod/kit-store'
 );
+
+export const getHiMarketApiBaseUrl = (): string => (
+  isTestModeEnabled()
+    ? 'http://10.1.50.87:8081'
+    : 'http://10.1.50.87:8081'
+);
+
+export const getHiMarketWebBaseUrl = (): string => (
+  isTestModeEnabled()
+    ? 'http://10.1.50.87:5173'
+    : 'http://10.1.50.87:5173'
+);
