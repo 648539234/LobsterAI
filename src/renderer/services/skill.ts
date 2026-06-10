@@ -1,4 +1,4 @@
-import { LocalizedText, LocalSkillInfo, MarketplaceSkill, MarketTag, Skill } from '../types/skill';
+import { HiMarketCategory, HiMarketSkill, HiMarketSkillDetail, LocalizedText, LocalSkillInfo, MarketplaceSkill, MarketTag, Skill } from '../types/skill';
 import { i18nService } from './i18n';
 
 export function resolveLocalizedText(text: string | LocalizedText): string {
@@ -276,6 +276,83 @@ class SkillService {
     } catch (error) {
       console.error('Failed to fetch marketplace skills:', error);
       return { skills: [], tags: [] };
+    }
+  }
+
+  async fetchHiMarketCategories(): Promise<HiMarketCategory[]> {
+    try {
+      const result = await window.electron.skills.fetchHiMarketCategories();
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to fetch categories');
+      }
+      const json = JSON.parse(result.data);
+      if (json.code !== 'SUCCESS') {
+        throw new Error(json.message || 'API error');
+      }
+      return json.data?.content ?? [];
+    } catch (error) {
+      console.error('Failed to fetch HiMarket categories:', error);
+      return [];
+    }
+  }
+
+  async fetchHiMarketSkills(categoryId?: string, page: number = 1): Promise<{
+    skills: HiMarketSkill[];
+    hasMore: boolean;
+  }> {
+    try {
+      const result = await window.electron.skills.fetchHiMarketSkills({ categoryId, page });
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to fetch skills');
+      }
+      const json = JSON.parse(result.data);
+      if (json.code !== 'SUCCESS') {
+        throw new Error(json.message || 'API error');
+      }
+      const content: HiMarketSkill[] = json.data?.content ?? [];
+      const totalElements: number = json.data?.totalElements ?? 0;
+      const size: number = json.data?.size ?? 10;
+      const currentPage: number = json.data?.number ?? page;
+      return {
+        skills: content,
+        hasMore: currentPage * size < totalElements,
+      };
+    } catch (error) {
+      console.error('Failed to fetch HiMarket skills:', error);
+      return { skills: [], hasMore: false };
+    }
+  }
+
+  async fetchHiMarketSkillDetail(productId: string): Promise<HiMarketSkillDetail | null> {
+    try {
+      const result = await window.electron.skills.fetchHiMarketSkillDetail(productId);
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to fetch skill detail');
+      }
+      const json = JSON.parse(result.data);
+      if (json.code !== 'SUCCESS') {
+        throw new Error(json.message || 'API error');
+      }
+      return json.data ?? null;
+    } catch (error) {
+      console.error('Failed to fetch HiMarket skill detail:', error);
+      return null;
+    }
+  }
+
+  async getHiMarketApiBaseUrl(): Promise<string> {
+    try {
+      return await window.electron.skills.getHiMarketApiBaseUrl();
+    } catch {
+      return 'http://10.1.50.87:8081';
+    }
+  }
+
+  async getHiMarketWebBaseUrl(): Promise<string> {
+    try {
+      return await window.electron.skills.getHiMarketWebBaseUrl();
+    } catch {
+      return 'http://10.1.50.87:5173';
     }
   }
 
