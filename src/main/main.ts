@@ -172,6 +172,8 @@ import {
   getPortalTasksUrl,
   getServerApiBaseUrl,
   getSkillStoreUrl,
+  getHiMarketApiBaseUrl,
+  getHiMarketWebBaseUrl,
   refreshEndpointsTestMode,
 } from './libs/endpoints';
 import {
@@ -4659,6 +4661,8 @@ if (!gotTheLock) {
   registerSkillHandlers({
     getSkillManager,
     getSkillStoreUrl,
+    getHiMarketApiBaseUrl,
+    getHiMarketWebBaseUrl,
     getOpenClawRuntimeAdapter: () => openClawRuntimeAdapter,
   });
 
