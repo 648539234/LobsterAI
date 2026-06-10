@@ -8,6 +8,8 @@ import { updatePluginSkillIdsFromReport } from '../../skills';
 export interface SkillHandlerDeps {
   getSkillManager: () => SkillManager;
   getSkillStoreUrl: () => string;
+  getHiMarketApiBaseUrl: () => string;
+  getHiMarketWebBaseUrl: () => string;
   getOpenClawRuntimeAdapter: () => {
     connectGatewayIfNeeded: () => Promise<void>;
     getGatewayClient: () => {
@@ -21,7 +23,7 @@ export interface SkillHandlerDeps {
 }
 
 export function registerSkillHandlers(deps: SkillHandlerDeps): void {
-  const { getSkillManager, getSkillStoreUrl, getOpenClawRuntimeAdapter } = deps;
+  const { getSkillManager, getSkillStoreUrl, getHiMarketApiBaseUrl, getHiMarketWebBaseUrl, getOpenClawRuntimeAdapter } = deps;
 
   ipcMain.handle('skills:list', () => {
     try {
@@ -166,6 +168,102 @@ export function registerSkillHandlers(deps: SkillHandlerDeps): void {
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch skill marketplace' };
     }
+  });
+
+  ipcMain.handle('skills:fetchHiMarketCategories', async () => {
+    const baseUrl = getHiMarketApiBaseUrl();
+    const url = `${baseUrl}/product-categories?page=1&productType=AGENT_SKILL&size=1000`;
+    console.log(`[HiMarket] fetching categories from: ${url}`);
+    try {
+      const http = await import('http');
+      const data = await new Promise<string>((resolve, reject) => {
+        const req = http.get(url, { timeout: 10000 }, (res) => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`HTTP ${res.statusCode}`));
+            res.resume();
+            return;
+          }
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk: string) => { body += chunk; });
+          res.on('end', () => resolve(body));
+          res.on('error', reject);
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+      });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch categories' };
+    }
+  });
+
+  ipcMain.handle('skills:fetchHiMarketSkills', async (_event, params: { categoryId?: string; page: number }) => {
+    const baseUrl = getHiMarketApiBaseUrl();
+    const { categoryId, page } = params;
+    let url = `${baseUrl}/products?page=${page}&size=10&sortBy=DOWNLOAD_COUNT&type=AGENT_SKILL`;
+    if (categoryId) {
+      url += `&categoryIds=${categoryId}`;
+    }
+    console.log(`[HiMarket] fetching skills from: ${url}`);
+    try {
+      const http = await import('http');
+      const data = await new Promise<string>((resolve, reject) => {
+        const req = http.get(url, { timeout: 10000 }, (res) => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`HTTP ${res.statusCode}`));
+            res.resume();
+            return;
+          }
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk: string) => { body += chunk; });
+          res.on('end', () => resolve(body));
+          res.on('error', reject);
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+      });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch skills' };
+    }
+  });
+
+  ipcMain.handle('skills:fetchHiMarketSkillDetail', async (_event, productId: string) => {
+    const baseUrl = getHiMarketApiBaseUrl();
+    const url = `${baseUrl}/products/${productId}`;
+    console.log(`[HiMarket] fetching skill detail from: ${url}`);
+    try {
+      const http = await import('http');
+      const data = await new Promise<string>((resolve, reject) => {
+        const req = http.get(url, { timeout: 10000 }, (res) => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`HTTP ${res.statusCode}`));
+            res.resume();
+            return;
+          }
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk: string) => { body += chunk; });
+          res.on('end', () => resolve(body));
+          res.on('error', reject);
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+      });
+      return { success: true, data };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to fetch skill detail' };
+    }
+  });
+
+  ipcMain.handle('skills:getHiMarketApiBaseUrl', () => {
+    return getHiMarketApiBaseUrl();
+  });
+
+  ipcMain.handle('skills:getHiMarketWebBaseUrl', () => {
+    return getHiMarketWebBaseUrl();
   });
 
   ipcMain.handle('skills:detectFromOpenClaw', async () => {
