@@ -415,6 +415,14 @@ interface IElectronAPI {
       config: Record<string, string>,
     ) => Promise<{ success: boolean; result?: EmailConnectivityTestResult; error?: string }>;
     fetchMarketplace: () => Promise<{ success: boolean; data?: string; error?: string }>;
+    fetchHiMarketCategories: () => Promise<{ success: boolean; data?: string; error?: string }>;
+    fetchHiMarketSkills: (params: {
+      categoryId?: string;
+      page: number;
+    }) => Promise<{ success: boolean; data?: string; error?: string }>;
+    fetchHiMarketSkillDetail: (productId: string) => Promise<{ success: boolean; data?: string; error?: string }>;
+    getHiMarketApiBaseUrl: () => Promise<string>;
+    getHiMarketWebBaseUrl: () => Promise<string>;
     detectFromOpenClaw: () => Promise<{
       skills: Array<{ name: string; description: string; skillKey: string; baseDir: string }>;
       error?: string;
