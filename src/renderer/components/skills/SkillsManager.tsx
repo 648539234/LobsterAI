@@ -460,6 +460,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
   };
 
   const handleHiMarketCategoryChange = (categoryId: string) => {
+    if (categoryId === activeHiMarketCategory) return;
     setActiveHiMarketCategory(categoryId);
     setHiMarketPage(1);
     setHiMarketSkills([]);
@@ -984,7 +985,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
                 </div>
               </div>
 
-              <p className="text-xs text-secondary line-clamp-2 mb-2">
+              <p className="text-xs text-secondary line-clamp-2 min-h-8 mb-2">
                 {skillService.getLocalizedSkillDescription(skill.id, skill.name, skill.description)}
               </p>
 
@@ -1100,7 +1101,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
                   </div>
                 </div>
 
-                <p className="text-xs text-secondary line-clamp-2 mb-2">
+                <p className="text-xs text-secondary line-clamp-2 min-h-8 mb-2">
                   {resolveLocalizedText(skill.description)}
                 </p>
 
@@ -1187,7 +1188,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
                         </div>
                       </div>
 
-                      <p className="text-xs text-secondary line-clamp-2 mb-2">
+                      <p className="text-xs text-secondary line-clamp-2 min-h-8 mb-2">
                         {skill.description}
                       </p>
 
@@ -1212,7 +1213,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
 
               {isLoadingHiMarketSkills && (
                 <div className="text-center py-4 text-sm text-secondary">
-                  {i18nService.t('downloadingSkill')}
+                  {i18nService.t('loading')}
                 </div>
               )}
             </>
@@ -1369,7 +1370,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
                 )}
                 <div className="flex items-center text-xs">
                   <span className="w-16 flex-shrink-0 text-secondary">{i18nService.t('skillDetailDownloadCount')}</span>
-                  <span className="px-1.5 py-0.5 rounded bg-surface-raised text-foreground font-medium">
+                  <span className="text-foreground font-medium">
                     {formatDownloadCount(hiMarketSkillDetail?.skillConfig?.downloadCount ?? selectedHiMarketSkill.skillConfig?.downloadCount ?? 0)}
                   </span>
                 </div>

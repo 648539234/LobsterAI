@@ -1050,7 +1050,7 @@ const downloadClawhubSkill = async (
     const raw = error instanceof Error ? error.message : String(error);
     // Strip ANSI escape codes and decode URL-encoded characters
     const cleaned = raw
-       
+
       .replace(/\x1b\[[0-9;]*m/g, '')
       .replace(/%[0-9A-Fa-f]{2}/g, (match) => {
         try { return decodeURIComponent(match); } catch { return match; }
@@ -1096,20 +1096,26 @@ const downloadNpmPackage = async (spec: string, tempRoot: string): Promise<strin
     npmArgs = ['pack', spec, '--ignore-scripts', '--json'];
   }
 
-  const packResult = await new Promise<{ code: number; stdout: string; stderr: string }>((resolve) => {
-    const child = spawn(npmCommand, npmArgs, {
-      cwd: tempRoot,
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', COREPACK_ENABLE_DOWNLOAD_PROMPT: '0' },
-      windowsHide: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (data) => { stdout += data; });
-    child.stderr.on('data', (data) => { stderr += data; });
-    child.on('close', (code) => resolve({ code: code ?? 1, stdout, stderr }));
-    child.on('error', (err) => resolve({ code: 1, stdout: '', stderr: err.message }));
-  });
+  const packResult = await new Promise<{ code: number; stdout: string; stderr: string }>(
+    resolve => {
+      const child = spawn(npmCommand, npmArgs, {
+        cwd: tempRoot,
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', COREPACK_ENABLE_DOWNLOAD_PROMPT: '0' },
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', data => {
+        stdout += data;
+      });
+      child.stderr.on('data', data => {
+        stderr += data;
+      });
+      child.on('close', code => resolve({ code: code ?? 1, stdout, stderr }));
+      child.on('error', err => resolve({ code: 1, stdout: '', stderr: err.message }));
+    },
+  );
 
   if (packResult.code !== 0) {
     const detail = packResult.stderr.trim() || packResult.stdout.trim();
@@ -1129,7 +1135,9 @@ const downloadNpmPackage = async (spec: string, tempRoot: string): Promise<strin
           break;
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   if (tgzFiles.length === 0) {
@@ -1142,15 +1150,17 @@ const downloadNpmPackage = async (spec: string, tempRoot: string): Promise<strin
   fs.mkdirSync(extractDir, { recursive: true });
 
   // Use tar to extract (Node.js built-in zlib + tar via npm's own bundled tar)
-  const tarExtract = await new Promise<{ code: number; stderr: string }>((resolve) => {
+  const tarExtract = await new Promise<{ code: number; stderr: string }>(resolve => {
     // Use system tar (available on all platforms including Windows 10+)
     const child = spawn('tar', ['xzf', tgzPath, '-C', extractDir], {
       windowsHide: true,
       stdio: ['ignore', 'ignore', 'pipe'],
     });
     let stderr = '';
-    child.stderr.on('data', (data) => { stderr += data; });
-    child.on('close', (code) => resolve({ code: code ?? 1, stderr }));
+    child.stderr.on('data', data => {
+      stderr += data;
+    });
+    child.on('close', code => resolve({ code: code ?? 1, stderr }));
     child.on('error', () => resolve({ code: 1, stderr: 'tar not found' }));
   });
 
@@ -1165,17 +1175,31 @@ const downloadNpmPackage = async (spec: string, tempRoot: string): Promise<strin
   }
 
   // Fallback: return first directory in extract dir
-  const dirs = fs.readdirSync(extractDir)
+  const dirs = fs
+    .readdirSync(extractDir)
     .map(name => path.join(extractDir, name))
     .filter(p => fs.statSync(p).isDirectory());
   return dirs[0] || extractDir;
 };
 
-const isRemoteZipUrl = (source: string): boolean => {
+const isRemoteZipUrl = async (source: string): Promise<boolean> => {
   try {
     const url = new URL(source);
-    return (url.protocol === 'http:' || url.protocol === 'https:')
-      && url.pathname.toLowerCase().endsWith('.zip');
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    if (url.pathname.toLowerCase().endsWith('.zip')) return true;
+    const response = await session.defaultSession.fetch(source, {
+      method: 'GET',
+      headers: { Range: 'bytes=0-3' },
+    });
+    if (!response.ok) return false;
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return (
+      buffer.length >= 4 &&
+      buffer[0] === 0x50 &&
+      buffer[1] === 0x4b &&
+      buffer[2] === 0x03 &&
+      buffer[3] === 0x04
+    );
   } catch {
     return false;
   }
@@ -1877,7 +1901,7 @@ export class SkillManager {
         } else {
           console.log('[SkillManager] downloadSkill: detected local directory');
         }
-      } else if (isRemoteZipUrl(trimmed)) {
+      } else if (await isRemoteZipUrl(trimmed)) {
         console.log('[SkillManager] downloadSkill: detected remote zip URL');
         const tempRoot = fs.mkdtempSync(path.join(app.getPath('temp'), 'lobsterai-skill-zip-'));
         cleanupPath = tempRoot;
@@ -2095,7 +2119,7 @@ export class SkillManager {
       cleanupPath = tempRoot;
 
       let localSource: string;
-      if (isRemoteZipUrl(downloadUrl)) {
+      if (await isRemoteZipUrl(downloadUrl)) {
         localSource = await downloadZipUrl(downloadUrl, tempRoot);
       } else {
         const normalized = this.normalizeGitSource(downloadUrl);
