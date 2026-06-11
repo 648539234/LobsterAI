@@ -1152,7 +1152,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
             <>
               <div className="grid grid-cols-2 gap-3">
                 {hiMarketSkills.map((skill) => {
-                  const isInstalled = skills.some(s => s.id === skill.productId);
+                  const isInstalled = skills.some(s =>s.id === skill.skillName);
                   return (
                     <div
                       key={skill.productId}
@@ -1387,7 +1387,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
               </div>
 
               {(() => {
-                const isInstalled = skills.some(s => s.id === selectedHiMarketSkill.productId);
+                const isInstalled = skills.some(s => s.id === selectedHiMarketSkill.skillName);
                 if (isInstalled) {
                   return (
                     <div className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-green-500/10 text-green-600 dark:text-green-400 text-sm font-medium">

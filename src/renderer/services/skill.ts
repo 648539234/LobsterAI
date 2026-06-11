@@ -309,7 +309,11 @@ class SkillService {
       if (json.code !== 'SUCCESS') {
         throw new Error(json.message || 'API error');
       }
-      const content: HiMarketSkill[] = json.data?.content ?? [];
+      const rawSkills: any[] = json.data?.content ?? [];
+      const content: HiMarketSkill[] = rawSkills.map((s: any) => ({
+        ...s,
+        skillName: s.skillConfig?.skillName || s.name,
+      }));
       const totalElements: number = json.data?.totalElements ?? 0;
       const size: number = json.data?.size ?? 10;
       const currentPage: number = json.data?.number ?? page;
@@ -333,7 +337,7 @@ class SkillService {
       if (json.code !== 'SUCCESS') {
         throw new Error(json.message || 'API error');
       }
-      return json.data ?? null;
+      return { ...json.data, skillName: json.data?.skillConfig?.skillName || json.data?.name } ?? null;
     } catch (error) {
       console.error('Failed to fetch HiMarket skill detail:', error);
       return null;

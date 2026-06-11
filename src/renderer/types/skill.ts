@@ -51,9 +51,11 @@ export interface HiMarketSkill {
   productId: string;
   name: string;
   description: string;
+  skillName: string;
   skillConfig: {
     skillTags: string[] | null;
     downloadCount: number;
+    skillName: string;
   };
 }
 
@@ -66,8 +68,10 @@ export interface HiMarketSkillDetail {
   categories: HiMarketCategory[];
   createAt: string;
   updatedAt: string;
+  skillName: string;
   skillConfig: {
     skillTags: string[] | null;
     downloadCount: number;
+    skillName: string;
   };
 }
