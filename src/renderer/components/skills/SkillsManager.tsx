@@ -109,6 +109,8 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
   const [isLoadingHiMarketDetail, setIsLoadingHiMarketDetail] = useState(false);
   const [hiMarketWebBaseUrl, setHiMarketWebBaseUrl] = useState('http://10.1.50.87:5173');
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [debouncedHiMarketSearch, setDebouncedHiMarketSearch] = useState('');
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const addSkillMenuRef = useRef<HTMLDivElement>(null);
   const addSkillButtonRef = useRef<HTMLButtonElement>(null);
@@ -182,10 +184,27 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
 
   useEffect(() => {
     if (activeTab !== 'internal') return;
+
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      setDebouncedHiMarketSearch(skillSearchQuery.trim());
+    }, 300);
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, [skillSearchQuery, activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'internal') return;
     let isActive = true;
     setIsLoadingHiMarketSkills(true);
     const categoryId = activeHiMarketCategory === 'all' ? undefined : activeHiMarketCategory;
-    skillService.fetchHiMarketSkills(categoryId, hiMarketPage).then((result) => {
+    skillService.fetchHiMarketSkills(categoryId, hiMarketPage, debouncedHiMarketSearch || undefined).then((result) => {
       if (!isActive) return;
       if (hiMarketPage === 1) {
         setHiMarketSkills(result.skills);
@@ -199,7 +218,7 @@ const SkillsManager: React.FC<SkillsManagerProps> = ({ readOnly, onCreateByChat 
       setIsLoadingHiMarketSkills(false);
     });
     return () => { isActive = false; };
-  }, [activeTab, activeHiMarketCategory, hiMarketPage]);
+  }, [activeTab, activeHiMarketCategory, hiMarketPage, debouncedHiMarketSearch]);
 
   useEffect(() => {
     if (!hasMoreHiMarketSkills || isLoadingHiMarketSkills) return;

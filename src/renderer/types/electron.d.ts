@@ -419,6 +419,7 @@ interface IElectronAPI {
     fetchHiMarketSkills: (params: {
       categoryId?: string;
       page: number;
+      name?: string;
     }) => Promise<{ success: boolean; data?: string; error?: string }>;
     fetchHiMarketSkillDetail: (productId: string) => Promise<{ success: boolean; data?: string; error?: string }>;
     getHiMarketApiBaseUrl: () => Promise<string>;

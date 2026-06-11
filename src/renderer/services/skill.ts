@@ -296,12 +296,12 @@ class SkillService {
     }
   }
 
-  async fetchHiMarketSkills(categoryId?: string, page: number = 1): Promise<{
+  async fetchHiMarketSkills(categoryId?: string, page: number = 1, name?: string): Promise<{
     skills: HiMarketSkill[];
     hasMore: boolean;
   }> {
     try {
-      const result = await window.electron.skills.fetchHiMarketSkills({ categoryId, page });
+      const result = await window.electron.skills.fetchHiMarketSkills({ categoryId, page, name });
       if (!result.success || !result.data) {
         throw new Error(result.error || 'Failed to fetch skills');
       }

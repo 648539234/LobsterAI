@@ -87,12 +87,13 @@ SkillsManager 组件
 - 接口一次查询10条数据(size=10),当滚轮往下拉时再查询10条数据(如果原来有加载的动画就按原来的来,没有新加一个)
 - 标签来源不展示,版本号列表页暂不展示,新增标签位放在来源的位置上,标签最多展示3个,新增展示下载量放在底部的右下角
 ### 接口文档
-- 接口url: /products?page=1&size=10&sortBy=DOWNLOAD_COUNT&type=AGENT_SKILL&categoryIds=category-b33583239111498b9938d73f4e2b9082
+- 接口url: /products?page=1&name=test&size=10&sortBy=DOWNLOAD_COUNT&type=AGENT_SKILL&categoryIds=category-b33583239111498b9938d73f4e2b9082
 - 请求方式: GET
 - 参数说明: 
   - page和size是分页参数
   - sortBy=DOWNLOAD_COUNT固定用法表示按下载量排序
   - type=AGENT_SKILL固定用法
+  - name=test是根据skill名称进行搜索
   - categoryIds=category-b33583239111498b9938d73f4e2b9082 可选,当查询全部分类时不送,查询指定分类时送,值参考 标签导航列表查询 接口中响应的分类id
 - 响应参数说明:
   - code: 响应码,"SUCCESS"表示响应成功

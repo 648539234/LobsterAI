@@ -198,12 +198,15 @@ export function registerSkillHandlers(deps: SkillHandlerDeps): void {
     }
   });
 
-  ipcMain.handle('skills:fetchHiMarketSkills', async (_event, params: { categoryId?: string; page: number }) => {
+  ipcMain.handle('skills:fetchHiMarketSkills', async (_event, params: { categoryId?: string; page: number; name?: string }) => {
     const baseUrl = getHiMarketApiBaseUrl();
-    const { categoryId, page } = params;
+    const { categoryId, page, name } = params;
     let url = `${baseUrl}/products?page=${page}&size=10&sortBy=DOWNLOAD_COUNT&type=AGENT_SKILL`;
     if (categoryId) {
       url += `&categoryIds=${categoryId}`;
+    }
+    if (name) {
+      url += `&name=${encodeURIComponent(name)}`;
     }
     console.log(`[HiMarket] fetching skills from: ${url}`);
     try {
